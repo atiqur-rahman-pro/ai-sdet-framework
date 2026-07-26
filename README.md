@@ -116,7 +116,7 @@ docker run --rm ai-sdet-framework
 ### Designed & Developed by **Atiqur Rahman**
 *Senior Software QA & Test Automation Specialist*
 
-[![YouTube Channel](https://img.shields.io/badge/YouTube-Subscribe_Now-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtube.com/@atiqur-rahman-pro)
+[![YouTube Channel](https://img.shields.io/badge/YouTube-Subscribe_Now-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@Digital_Digest_Live)
 [![GitHub](https://img.shields.io/badge/GitHub-atiqur--rahman--pro-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/atiqur-rahman-pro)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect_Me-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/atiqur-rahman-pro)
 
