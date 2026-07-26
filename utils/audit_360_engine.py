@@ -4,7 +4,7 @@ import ssl
 import socket
 import argparse
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
@@ -15,7 +15,7 @@ from config.config import Config
 from utils.claude_helper import ClaudeAIAgent
 
 class Site360Inspector:
-    """Automated 360-Degree Website Audit Engine for Client Audits."""
+    """Enhanced 360-Degree Executive Website Audit Engine with Scores & Article Analysis."""
     
     def __init__(self, target_url: str):
         if not target_url.startswith("http"):
@@ -26,8 +26,8 @@ class Site360Inspector:
         self.results = {}
 
     def audit_domain_ssl(self):
-        """1. Domain, IP, and SSL Certificate Inspection."""
-        print(f"[1/5] Inspecting SSL & Domain for {self.domain}...")
+        """1. Domain, IP, and SSL Security Inspection."""
+        print(f"[1/6] Inspecting SSL & Security for {self.domain}...")
         ssl_info = {}
         try:
             ip_address = socket.gethostbyname(self.domain)
@@ -41,134 +41,193 @@ class Site360Inspector:
                 
                 not_after_str = cert.get('notAfter')
                 if not_after_str:
-                    not_after = datetime.strptime(not_after_str, '%b %d %H:%M:%S %Y %Z')
-                    days_remaining = (not_after - datetime.utcnow()).days
+                    not_after = datetime.strptime(not_after_str, '%b %d %H:%M:%S %Y %Z').replace(tzinfo=timezone.utc)
+                    days_remaining = (not_after - datetime.now(timezone.utc)).days
                     ssl_info['ssl_issuer'] = dict(x[0] for x in cert.get('issuer', []))
                     ssl_info['ssl_expiry_date'] = not_after_str
                     ssl_info['days_remaining'] = days_remaining
                     ssl_info['ssl_status'] = "VALID" if days_remaining > 0 else "EXPIRED"
+                    ssl_info['score'] = 100 if days_remaining > 30 else (50 if days_remaining > 0 else 0)
         except Exception as e:
-            ssl_info['ssl_status'] = f"Warning/Error: {str(e)}"
+            ssl_info['ssl_status'] = f"Warning: {str(e)}"
+            ssl_info['days_remaining'] = 0
+            ssl_info['score'] = 0
             
         self.results['domain_ssl'] = ssl_info
 
-    def audit_seo_content(self, html_soup: BeautifulSoup, response_time_ms: float):
-        """2. Technical SEO & Content Inspection."""
-        print("[2/5] Inspecting Technical SEO & Content...")
+    def audit_article_and_seo(self, html_soup: BeautifulSoup, response_time_ms: float):
+        """2. Deep Article SEO & On-Page Content Analysis."""
+        print("[2/6] Analyzing Article SEO, Keyword Metrics & Structure...")
         seo = {}
         
+        # Title Tag & Score
         title_tag = html_soup.find('title')
         seo['title'] = title_tag.text.strip() if title_tag else "MISSING"
-        seo['title_length'] = len(seo['title']) if title_tag else 0
+        title_len = len(seo['title'])
+        seo['title_score'] = 100 if 30 <= title_len <= 60 else (60 if title_len > 0 else 0)
         
+        # Meta Description & Score
         meta_desc = html_soup.find('meta', attrs={'name': 'description'})
         seo['meta_description'] = meta_desc.get('content', '').strip() if meta_desc else "MISSING"
-        seo['meta_desc_length'] = len(seo['meta_description']) if meta_desc else 0
+        desc_len = len(seo['meta_description'])
+        seo['desc_score'] = 100 if 120 <= desc_len <= 160 else (60 if desc_len > 0 else 0)
         
+        # Canonical Tag
         canonical = html_soup.find('link', attrs={'rel': 'canonical'})
         seo['canonical_url'] = canonical.get('href') if canonical else "MISSING"
         
-        h1_tags = [h.text.strip() for h in html_soup.find_all('h1')]
-        seo['h1_count'] = len(h1_tags)
-        seo['h1_sample'] = h1_tags[0] if h1_tags else "None"
+        # Headings Hierarchy
+        h1s = [h.text.strip() for h in html_soup.find_all('h1')]
+        h2s = [h.text.strip() for h in html_soup.find_all('h2')]
+        h3s = [h.text.strip() for h in html_soup.find_all('h3')]
+        seo['h1_count'] = len(h1s)
+        seo['h2_count'] = len(h2s)
+        seo['h3_count'] = len(h3s)
+        seo['heading_structure_score'] = 100 if len(h1s) == 1 else (50 if len(h1s) > 1 else 20)
         
+        # Article Word Count & Content Density
+        text_content = html_soup.get_text(separator=' ')
+        words = [w.lower() for w in text_content.split() if w.isalpha() and len(w) > 2]
+        word_count = len(words)
+        seo['word_count'] = word_count
+        seo['content_length_rating'] = "Comprehensive" if word_count > 1000 else ("Moderate" if word_count > 400 else "Thin Content")
+        
+        # Image Alt Attributes
         images = html_soup.find_all('img')
         missing_alt = [img for img in images if not img.get('alt')]
         seo['total_images'] = len(images)
         seo['missing_alt_count'] = len(missing_alt)
+        seo['image_alt_score'] = round(((len(images) - len(missing_alt)) / len(images) * 100), 1) if images else 100
+        
         seo['response_time_ms'] = round(response_time_ms, 2)
+        seo['overall_seo_score'] = round((seo['title_score'] + seo['desc_score'] + seo['heading_structure_score'] + seo['image_alt_score']) / 4, 1)
         
         self.results['seo'] = seo
 
+    def audit_coding_quality(self, html_soup: BeautifulSoup, raw_html: str):
+        """3. HTML5 Coding Style, Semantic Structure & Script Load Inspection."""
+        print("[3/6] Inspecting HTML5 Coding Style & Code Quality...")
+        code = {}
+        
+        # Semantic Tags
+        semantic_tags = ['header', 'nav', 'main', 'article', 'aside', 'footer']
+        found_semantics = [tag for tag in semantic_tags if html_soup.find(tag)]
+        code['semantic_score'] = round((len(found_semantics) / len(semantic_tags)) * 100, 1)
+        code['found_semantics'] = found_semantics
+        
+        # Inline CSS vs External Stylesheets
+        inline_style_tags = len(html_soup.find_all(style=True))
+        external_css = len(html_soup.find_all('link', attrs={'rel': 'stylesheet'}))
+        code['inline_styles_count'] = inline_style_tags
+        code['external_stylesheets_count'] = external_css
+        
+        # JS Scripts & Async/Defer Optimization
+        script_tags = html_soup.find_all('script')
+        async_defer_scripts = [s for s in script_tags if s.get('async') is not None or s.get('defer') is not None]
+        code['total_scripts'] = len(script_tags)
+        code['optimized_scripts'] = len(async_defer_scripts)
+        code['script_optimization_score'] = round((len(async_defer_scripts) / len(script_tags) * 100), 1) if script_tags else 100
+        
+        # Total DOM Node Count
+        all_elements = len(html_soup.find_all())
+        code['dom_element_count'] = all_elements
+        code['dom_health'] = "Optimal (< 1500)" if all_elements < 1500 else "Excessive DOM Size (> 1500)"
+        
+        code['code_quality_score'] = round((code['semantic_score'] + code['script_optimization_score']) / 2, 1)
+        self.results['code_quality'] = code
+
     def audit_security_headers(self, headers: dict):
-        """3. Security Headers Inspection."""
-        print("[3/5] Inspecting Security Headers...")
+        """4. Security & Vulnerability Scan."""
+        print("[4/6] Inspecting Security Headers & Protection...")
         sec = {}
         security_headers = {
-            'Strict-Transport-Security': 'HSTS',
-            'Content-Security-Policy': 'CSP',
-            'X-Frame-Options': 'Clickjacking Protection',
-            'X-Content-Type-Options': 'MIME-Sniffing Protection',
+            'Strict-Transport-Security': 'HSTS Header',
+            'Content-Security-Policy': 'CSP Policy',
+            'X-Frame-Options': 'Clickjacking Defense',
+            'X-Content-Type-Options': 'MIME-Sniffing Defense',
             'Referrer-Policy': 'Referrer Policy'
         }
         
-        present_headers = {}
-        missing_headers = []
-        for header, description in security_headers.items():
-            value = headers.get(header) or headers.get(header.lower())
-            if value:
-                present_headers[header] = value
+        present = []
+        missing = []
+        for header, desc in security_headers.items():
+            if headers.get(header) or headers.get(header.lower()):
+                present.append(desc)
             else:
-                missing_headers.append(f"{header} ({description})")
+                missing.append(desc)
                 
-        sec['present_count'] = len(present_headers)
-        sec['missing_headers'] = missing_headers
-        sec['server_header'] = headers.get('Server', 'Hidden / Protected')
+        sec['present_count'] = len(present)
+        sec['missing_headers'] = missing
+        sec['security_score'] = round((len(present) / len(security_headers)) * 100, 1)
         self.results['security'] = sec
 
-    def audit_broken_links(self, html_soup: BeautifulSoup):
-        """4. Link Health & Broken Links Check (Top Links)."""
-        print("[4/5] Checking Internal/External Links...")
+    def audit_link_health(self, html_soup: BeautifulSoup):
+        """5. Broken Links & Redirection Inspection."""
+        print("[5/6] Checking Link Health & Status Codes...")
         links = html_soup.find_all('a', href=True)
-        total_links = len(links)
-        
-        scanned_links = []
-        broken_links = []
-        
         sample_links = [l['href'] for l in links if l['href'].startswith('http')][:15]
+        
+        broken = []
         for url in sample_links:
             try:
                 res = requests.head(url, timeout=4, allow_redirects=True)
                 if res.status_code >= 400:
-                    broken_links.append((url, res.status_code))
-                else:
-                    scanned_links.append((url, res.status_code))
+                    broken.append((url, res.status_code))
             except Exception:
-                broken_links.append((url, "Failed/Timeout"))
+                broken.append((url, "Timeout/Error"))
                 
         self.results['links'] = {
-            'total_links_found': total_links,
             'scanned_count': len(sample_links),
-            'broken_links': broken_links,
-            'broken_count': len(broken_links)
+            'broken_count': len(broken),
+            'link_health_score': round(((len(sample_links) - len(broken)) / len(sample_links) * 100), 1) if sample_links else 100
         }
 
-    def generate_ai_swot_report(self) -> str:
-        """5. Synthesize Telemetry via Claude AI for Client Executive Summary."""
-        print("[5/5] Synthesizing Telemetry with Claude AI Executive SWOT Analysis...")
+    def compute_overall_health_score(self) -> float:
+        """Calculate Weighted Overall Website Health Score (0-100)."""
+        ssl_score = self.results['domain_ssl'].get('score', 0)
+        seo_score = self.results['seo'].get('overall_seo_score', 0)
+        code_score = self.results['code_quality'].get('code_quality_score', 0)
+        sec_score = self.results['security'].get('security_score', 0)
+        link_score = self.results['links'].get('link_health_score', 0)
+        
+        overall = (ssl_score * 0.20) + (seo_score * 0.30) + (code_score * 0.20) + (sec_score * 0.15) + (link_score * 0.15)
+        return round(overall, 1)
+
+    def generate_ai_swot_report(self, overall_score: float) -> str:
+        """6. Synthesize Telemetry with Claude AI Executive SWOT Analysis."""
+        print("[6/6] Generating Executive AI SWOT Analysis...")
         ai_agent = ClaudeAIAgent()
         
         telemetry_summary = (
             f"Domain: {self.domain}\n"
-            f"SSL Status: {self.results['domain_ssl'].get('ssl_status')} (Days Left: {self.results['domain_ssl'].get('days_remaining', 'N/A')})\n"
-            f"Response Speed: {self.results['seo'].get('response_time_ms')} ms\n"
-            f"SEO Title: {self.results['seo'].get('title')} (Len: {self.results['seo'].get('title_length')})\n"
-            f"SEO Meta Desc: {self.results['seo'].get('meta_description')}\n"
-            f"Missing Image Alt Tags: {self.results['seo'].get('missing_alt_count')} of {self.results['seo'].get('total_images')}\n"
+            f"Overall Health Score: {overall_score}/100\n"
+            f"SEO Score: {self.results['seo'].get('overall_seo_score')}/100 (Title: {self.results['seo'].get('title')})\n"
+            f"Article Word Count: {self.results['seo'].get('word_count')} words ({self.results['seo'].get('content_length_rating')})\n"
+            f"Code Quality Score: {self.results['code_quality'].get('code_quality_score')}/100\n"
             f"Missing Security Headers: {', '.join(self.results['security'].get('missing_headers', []))}\n"
-            f"Broken Links Found: {self.results['links'].get('broken_count')} out of {self.results['links'].get('scanned_count')} checked\n"
+            f"Broken Links: {self.results['links'].get('broken_count')} of {self.results['links'].get('scanned_count')} checked\n"
         )
         
         prompt = (
-            f"You are a Senior Technical QA & SEO Consultant. Analyze this website telemetry:\n{telemetry_summary}\n"
-            f"Generate a clean 4-bullet executive report with:\n"
-            f"1. Strengths\n2. Technical & Security Weaknesses\n3. High Priority Action Plan for the Client."
+            f"You are an Executive QA & Technical SEO Consultant. Analyze this website audit telemetry:\n{telemetry_summary}\n"
+            f"Provide a 4-point C-level executive summary covering: Strengths, SEO/Code Weaknesses, Security Risks, and Immediate ROI Improvements."
         )
         
         if ai_agent.api_key:
-            return ai_agent.analyze_failure("360_Audit_Report", prompt)
+            return ai_agent.analyze_failure("Executive_360_Report", prompt)
         else:
             return (
-                f"### Executive Summary for {self.domain}\n"
-                f"- **Strengths**: Domain is live and active with fast initial response ({self.results['seo'].get('response_time_ms')} ms).\n"
+                f"### Executive SWOT Analysis for {self.domain}\n"
+                f"- **Overall Health Score**: {overall_score}/100\n"
+                f"- **Strengths**: Solid initial load performance ({self.results['seo'].get('response_time_ms')} ms) with valid SSL security.\n"
                 f"- **Weaknesses**: Missing security headers ({len(self.results['security'].get('missing_headers', []))}) and {self.results['seo'].get('missing_alt_count')} images without Alt attributes.\n"
-                f"- **Action Plan**: Implement missing HSTS/CSP security headers, fix image ALT tags for SEO, and monitor broken link redirects."
+                f"- **Action Plan**: Implement missing HSTS/CSP security headers, fix image ALT tags for SEO, and structure H1 headings."
             )
 
     def run_full_360_audit(self):
-        """Execute complete 360-degree audit pipeline."""
+        """Execute complete enhanced 360-degree audit pipeline."""
         print(f"\n=======================================================")
-        print(f"STARTING 360 DEGREE AUTOMATED SITE AUDIT FOR: {self.target_url}")
+        print(f"STARTING ENHANCED 360 DEGREE AUDIT FOR: {self.target_url}")
         print(f"=======================================================\n")
         
         start_time = datetime.now()
@@ -178,15 +237,21 @@ class Site360Inspector:
         soup = BeautifulSoup(response.text, 'html.parser')
         
         self.audit_domain_ssl()
-        self.audit_seo_content(soup, response_time_ms)
+        self.audit_article_and_seo(soup, response_time_ms)
+        self.audit_coding_quality(soup, response.text)
         self.audit_security_headers(response.headers)
-        self.audit_broken_links(soup)
+        self.audit_link_health(soup)
         
-        swot_summary = self.generate_ai_swot_report()
+        overall_score = self.compute_overall_health_score()
+        self.results['overall_score'] = overall_score
+        
+        swot_summary = self.generate_ai_swot_report(overall_score)
         self.results['swot'] = swot_summary
         
         report_path = self.save_html_report()
-        print(f"\n[SUCCESS] AUDIT COMPLETE! Full Client Report generated at:")
+        print(f"\n[SUCCESS] ENHANCED 360 AUDIT COMPLETE!")
+        print(f"Overall Site Health Score: {overall_score} / 100")
+        print(f"Client HTML Report generated at:")
         print(f"file:///{report_path}\n")
         return report_path
 
@@ -196,72 +261,89 @@ class Site360Inspector:
         filename = f"audit_360_{self.domain.replace('.', '_')}.html"
         filepath = os.path.join(reports_dir, filename)
         
+        overall_score = self.results.get('overall_score', 0)
+        score_color = "#22c55e" if overall_score >= 80 else ("#eab308" if overall_score >= 60 else "#ef4444")
+        
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>360° Audit Report - {self.domain}</title>
+    <title>360° Site Audit - {self.domain}</title>
     <style>
-        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #0f172a; color: #f8fafc; }}
-        .container {{ max-width: 1000px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
-        h1 {{ color: #38bdf8; border-bottom: 2px solid #334155; padding-bottom: 10px; }}
-        h2 {{ color: #a78bfa; margin-top: 25px; }}
-        .badge {{ display: inline-block; padding: 6px 12px; border-radius: 6px; font-weight: bold; }}
-        .badge-success {{ background: #15803d; color: #fff; }}
-        .badge-warning {{ background: #b45309; color: #fff; }}
-        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }}
-        .card {{ background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; }}
-        .metric-title {{ color: #94a3b8; font-size: 0.9em; }}
-        .metric-value {{ font-size: 1.3em; font-weight: bold; color: #38bdf8; margin-top: 5px; }}
-        pre {{ background: #090d16; padding: 15px; border-radius: 6px; color: #e2e8f0; white-space: pre-wrap; }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 25px; background: #0b0f19; color: #f1f5f9; }}
+        .container {{ max-width: 1100px; margin: 0 auto; background: #161e2e; padding: 35px; border-radius: 16px; border: 1px solid #1e293b; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 20px; }}
+        .title-area h1 {{ margin: 0; color: #38bdf8; font-size: 2em; }}
+        .score-box {{ background: #0f172a; padding: 15px 30px; border-radius: 12px; text-align: center; border: 2px solid {score_color}; }}
+        .score-num {{ font-size: 2.5em; font-weight: 800; color: {score_color}; }}
+        .score-label {{ font-size: 0.8em; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }}
+        h2 {{ color: #c084fc; margin-top: 30px; font-size: 1.3em; }}
+        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 20px; }}
+        .card {{ background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; }}
+        .metric-title {{ color: #94a3b8; font-size: 0.85em; font-weight: 600; text-transform: uppercase; }}
+        .metric-value {{ font-size: 1.4em; font-weight: bold; color: #38bdf8; margin-top: 6px; }}
+        .sub-text {{ font-size: 0.85em; color: #64748b; margin-top: 4px; }}
+        pre {{ background: #070a12; padding: 20px; border-radius: 10px; color: #e2e8f0; border: 1px solid #1e293b; font-family: inherit; line-height: 1.6; white-space: pre-wrap; }}
+        ul {{ padding-left: 20px; color: #cbd5e1; }}
+        li {{ margin-bottom: 6px; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🌐 360° Executive Site Audit Report</h1>
-        <p>Target Domain: <strong>{self.domain}</strong> | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
-        <h2>🤖 Executive AI SWOT Analysis</h2>
-        <pre>{self.results.get('swot')}</pre>
-        
-        <div class="grid">
-            <div class="card">
-                <h2>🔒 Domain & SSL Security</h2>
-                <div class="metric-title">SSL Status</div>
-                <div class="metric-value">{self.results['domain_ssl'].get('ssl_status')}</div>
-                <div class="metric-title" style="margin-top:10px;">Days Remaining</div>
-                <div class="metric-value">{self.results['domain_ssl'].get('days_remaining', 'N/A')} Days</div>
-                <div class="metric-title" style="margin-top:10px;">Server IP</div>
-                <div class="metric-value">{self.results['domain_ssl'].get('ip_address', 'N/A')}</div>
+        <div class="header">
+            <div class="title-area">
+                <h1>🌐 360° Executive Website Audit</h1>
+                <p style="color:#94a3b8; margin-top:5px;">Target Domain: <strong>{self.domain}</strong> | Audited: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
-            
-            <div class="card">
-                <h2>⚡ Performance & Technical SEO</h2>
-                <div class="metric-title">Initial Page Speed</div>
-                <div class="metric-value">{self.results['seo'].get('response_time_ms')} ms</div>
-                <div class="metric-title" style="margin-top:10px;">SEO Title</div>
-                <div class="metric-value" style="font-size:0.95em;">{self.results['seo'].get('title')}</div>
-                <div class="metric-title" style="margin-top:10px;">Images Missing Alt Tags</div>
-                <div class="metric-value">{self.results['seo'].get('missing_alt_count')} / {self.results['seo'].get('total_images')}</div>
+            <div class="score-box">
+                <div class="score-num">{overall_score}</div>
+                <div class="score-label">Overall Health Score</div>
             </div>
         </div>
         
+        <h2>🤖 Executive AI SWOT Summary</h2>
+        <pre>{self.results.get('swot')}</pre>
+        
+        <h2>📊 Comprehensive Audit Breakdown</h2>
         <div class="grid">
             <div class="card">
-                <h2>🛡️ Missing Security Headers</h2>
-                <ul>
-                    {"".join(f"<li>{h}</li>" for h in self.results['security'].get('missing_headers', []))}
-                </ul>
+                <div class="metric-title">SEO Score</div>
+                <div class="metric-value">{self.results['seo'].get('overall_seo_score')} / 100</div>
+                <div class="sub-text">H1: {self.results['seo'].get('h1_count')} | H2: {self.results['seo'].get('h2_count')} | H3: {self.results['seo'].get('h3_count')}</div>
             </div>
             
             <div class="card">
-                <h2>🔗 Link Health Check</h2>
-                <div class="metric-title">Scanned Links</div>
-                <div class="metric-value">{self.results['links'].get('scanned_count')} Links</div>
-                <div class="metric-title" style="margin-top:10px;">Broken Links Found</div>
-                <div class="metric-value" style="color: {'#ef4444' if self.results['links'].get('broken_count') > 0 else '#22c55e'};">
-                    {self.results['links'].get('broken_count')} Broken Links
-                </div>
+                <div class="metric-title">Article Word Count</div>
+                <div class="metric-value">{self.results['seo'].get('word_count')} Words</div>
+                <div class="sub-text">Rating: {self.results['seo'].get('content_length_rating')}</div>
+            </div>
+            
+            <div class="card">
+                <div class="metric-title">HTML5 Code Quality</div>
+                <div class="metric-value">{self.results['code_quality'].get('code_quality_score')} / 100</div>
+                <div class="sub-text">DOM Nodes: {self.results['code_quality'].get('dom_element_count')}</div>
+            </div>
+            
+            <div class="card">
+                <div class="metric-title">Security Score</div>
+                <div class="metric-value">{self.results['security'].get('security_score')} / 100</div>
+                <div class="sub-text">Missing Headers: {len(self.results['security'].get('missing_headers', []))}</div>
+            </div>
+        </div>
+        
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h2>📝 Article & SEO Metadata</h2>
+                <p><strong>Title:</strong> {self.results['seo'].get('title')} ({self.results['seo'].get('title_length')} chars)</p>
+                <p><strong>Meta Description:</strong> {self.results['seo'].get('meta_description')}</p>
+                <p><strong>Images Missing Alt Tags:</strong> {self.results['seo'].get('missing_alt_count')} of {self.results['seo'].get('total_images')}</p>
+            </div>
+            
+            <div class="card">
+                <h2>💻 Code Style & Optimization</h2>
+                <p><strong>Semantic HTML Tags Found:</strong> {', '.join(self.results['code_quality'].get('found_semantics', []))}</p>
+                <p><strong>Scripts (Async/Defer Optimized):</strong> {self.results['code_quality'].get('optimized_scripts')} / {self.results['code_quality'].get('total_scripts')}</p>
+                <p><strong>DOM Health:</strong> {self.results['code_quality'].get('dom_health')}</p>
             </div>
         </div>
     </div>
@@ -273,7 +355,7 @@ class Site360Inspector:
         return filepath
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run 360 Degree Website Audit")
+    parser = argparse.ArgumentParser(description="Run Enhanced 360 Degree Website Audit")
     parser.add_argument("--url", default="https://sleepapneabd.com", help="Target URL to audit")
     args = parser.parse_args()
     
