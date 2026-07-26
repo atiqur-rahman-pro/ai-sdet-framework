@@ -11,6 +11,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+      BASE_URL: https://sleepapneabd.com
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,12 +27,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -m playwright install --with-deps
+          python -m playwright install --with-deps chromium
 
-      - name: Run API, Audit & AI Tests
+      - name: Run Test Suites
         run: |
-          export PYTHONPATH=.
-          python -m pytest tests/api tests/audit tests/ai --html=reports/report.html --self-contained-html
+          python -m pytest tests/api tests/audit tests/ai --html=reports/report.html --self-contained-html -v --tb=short
 
       - name: Upload HTML Test Report
         uses: actions/upload-artifact@v4
