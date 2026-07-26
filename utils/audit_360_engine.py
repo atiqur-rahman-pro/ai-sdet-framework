@@ -17,6 +17,10 @@ from utils.claude_helper import ClaudeAIAgent
 class Site360Inspector:
     """Enhanced 360-Degree Executive Website Audit Engine with Scores & Article Analysis."""
     
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+
     def __init__(self, target_url: str):
         if not target_url.startswith("http"):
             target_url = f"https://{target_url}"
@@ -35,7 +39,7 @@ class Site360Inspector:
             
             ctx = ssl.create_default_context()
             with ctx.wrap_socket(socket.socket(), server_hostname=self.domain) as s:
-                s.settimeout(5.0)
+                s.settimeout(10.0)
                 s.connect((self.domain, 443))
                 cert = s.getpeercert()
                 
@@ -60,23 +64,19 @@ class Site360Inspector:
         print("[2/6] Analyzing Article SEO, Keyword Metrics & Structure...")
         seo = {}
         
-        # Title Tag & Score
         title_tag = html_soup.find('title')
         seo['title'] = title_tag.text.strip() if title_tag else "MISSING"
         title_len = len(seo['title'])
         seo['title_score'] = 100 if 30 <= title_len <= 60 else (60 if title_len > 0 else 0)
         
-        # Meta Description & Score
         meta_desc = html_soup.find('meta', attrs={'name': 'description'})
         seo['meta_description'] = meta_desc.get('content', '').strip() if meta_desc else "MISSING"
         desc_len = len(seo['meta_description'])
         seo['desc_score'] = 100 if 120 <= desc_len <= 160 else (60 if desc_len > 0 else 0)
         
-        # Canonical Tag
         canonical = html_soup.find('link', attrs={'rel': 'canonical'})
         seo['canonical_url'] = canonical.get('href') if canonical else "MISSING"
         
-        # Headings Hierarchy
         h1s = [h.text.strip() for h in html_soup.find_all('h1')]
         h2s = [h.text.strip() for h in html_soup.find_all('h2')]
         h3s = [h.text.strip() for h in html_soup.find_all('h3')]
@@ -85,14 +85,12 @@ class Site360Inspector:
         seo['h3_count'] = len(h3s)
         seo['heading_structure_score'] = 100 if len(h1s) == 1 else (50 if len(h1s) > 1 else 20)
         
-        # Article Word Count & Content Density
         text_content = html_soup.get_text(separator=' ')
         words = [w.lower() for w in text_content.split() if w.isalpha() and len(w) > 2]
         word_count = len(words)
         seo['word_count'] = word_count
         seo['content_length_rating'] = "Comprehensive" if word_count > 1000 else ("Moderate" if word_count > 400 else "Thin Content")
         
-        # Image Alt Attributes
         images = html_soup.find_all('img')
         missing_alt = [img for img in images if not img.get('alt')]
         seo['total_images'] = len(images)
@@ -109,26 +107,22 @@ class Site360Inspector:
         print("[3/6] Inspecting HTML5 Coding Style & Code Quality...")
         code = {}
         
-        # Semantic Tags
         semantic_tags = ['header', 'nav', 'main', 'article', 'aside', 'footer']
         found_semantics = [tag for tag in semantic_tags if html_soup.find(tag)]
         code['semantic_score'] = round((len(found_semantics) / len(semantic_tags)) * 100, 1)
         code['found_semantics'] = found_semantics
         
-        # Inline CSS vs External Stylesheets
         inline_style_tags = len(html_soup.find_all(style=True))
         external_css = len(html_soup.find_all('link', attrs={'rel': 'stylesheet'}))
         code['inline_styles_count'] = inline_style_tags
         code['external_stylesheets_count'] = external_css
         
-        # JS Scripts & Async/Defer Optimization
         script_tags = html_soup.find_all('script')
         async_defer_scripts = [s for s in script_tags if s.get('async') is not None or s.get('defer') is not None]
         code['total_scripts'] = len(script_tags)
         code['optimized_scripts'] = len(async_defer_scripts)
         code['script_optimization_score'] = round((len(async_defer_scripts) / len(script_tags) * 100), 1) if script_tags else 100
         
-        # Total DOM Node Count
         all_elements = len(html_soup.find_all())
         code['dom_element_count'] = all_elements
         code['dom_health'] = "Optimal (< 1500)" if all_elements < 1500 else "Excessive DOM Size (> 1500)"
@@ -170,7 +164,7 @@ class Site360Inspector:
         broken = []
         for url in sample_links:
             try:
-                res = requests.head(url, timeout=4, allow_redirects=True)
+                res = requests.head(url, headers=self.HEADERS, timeout=5, allow_redirects=True)
                 if res.status_code >= 400:
                     broken.append((url, res.status_code))
             except Exception:
@@ -231,7 +225,7 @@ class Site360Inspector:
         print(f"=======================================================\n")
         
         start_time = datetime.now()
-        response = requests.get(self.target_url, timeout=15)
+        response = requests.get(self.target_url, headers=self.HEADERS, timeout=25)
         response_time_ms = (datetime.now() - start_time).total_seconds() * 1000
         
         soup = BeautifulSoup(response.text, 'html.parser')
