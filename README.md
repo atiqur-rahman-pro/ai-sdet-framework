@@ -2,6 +2,7 @@
 
 # 🚀 Enterprise AI-Augmented QA Automation & SDET Framework
 
+[![Microsoft Contributor](https://img.shields.io/badge/Microsoft_Playwright-Open_Source_Contributor-blue?style=for-the-badge&logo=microsoft&logoColor=white)](https://github.com/microsoft/playwright-python/pull/3156)
 [![Python](https://img.shields.io/badge/Python-3.14%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Playwright](https://img.shields.io/badge/Playwright-Automated_UI-green?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
 [![Pytest](https://img.shields.io/badge/Pytest-Testing_Framework-yellow?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org)
@@ -60,7 +61,8 @@ ai-sdet-framework/
 │   └── audit/                  # Technical SEO & Metadata audit suite
 ├── utils/
 │   ├── jira_client.py          # Jira REST API Client
-│   └── claude_helper.py        # Claude AI API helper
+│   ├── claude_helper.py        # Claude AI API helper
+│   └── audit_360_engine.py     # 360 Degree Automated Site Audit Engine
 ├── docker/
 │   └── Dockerfile              # Docker execution environment
 ├── .github/workflows/
@@ -96,15 +98,14 @@ python -m pytest -m ai
 python -m pytest -m audit
 ```
 
-### 3. Run Performance Load Testing (Locust)
+### 3. Run 360° Automated Client Site Audit Engine
 ```bash
-python -m locust -f tests/performance/locustfile.py --host=https://sleepapneabd.com
+python utils/audit_360_engine.py --url https://sleepapneabd.com
 ```
 
-### 4. Dockerized Run
+### 4. Run Performance Load Testing (Locust)
 ```bash
-docker build -t ai-sdet-framework -f docker/Dockerfile .
-docker run --rm ai-sdet-framework
+python -m locust -f tests/performance/locustfile.py --host=https://sleepapneabd.com
 ```
 
 ---
@@ -116,9 +117,10 @@ docker run --rm ai-sdet-framework
 ### Designed & Developed by **Atiqur Rahman**
 *Senior Software QA & Test Automation Specialist*
 
+[![Microsoft Contributor](https://img.shields.io/badge/Microsoft_Playwright-Open_Source_Contributor-blue?style=for-the-badge&logo=microsoft&logoColor=white)](https://github.com/microsoft/playwright-python/pull/3156)
 [![YouTube Channel](https://img.shields.io/badge/YouTube-Subscribe_Now-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@Digital_Digest_Live)
 [![GitHub](https://img.shields.io/badge/GitHub-atiqur--rahman--pro-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/atiqur-rahman-pro)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect_Me-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/atiqur-rahman-pro)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect_Me-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/atiqur-rahman-pro)
 
 ---
 <p><i>⭐ If you found this framework helpful, please give it a Star on GitHub! ⭐</i></p>
