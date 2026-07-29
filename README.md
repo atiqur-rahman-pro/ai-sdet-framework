@@ -3,6 +3,7 @@
 # 🚀 Enterprise AI-Augmented QA Automation & SDET Framework
 
 [![Microsoft Contributor](https://img.shields.io/badge/Microsoft_Playwright-Open_Source_Contributor-blue?style=for-the-badge&logo=microsoft&logoColor=white)](https://github.com/microsoft/playwright-python/pull/3156)
+[![7-Day Automation](https://img.shields.io/badge/7--Day_Automation_Suite-100%25_Completed-brightgreen?style=for-the-badge&logo=github&logoColor=white)](https://github.com/atiqur-rahman-pro/ai-sdet-framework)
 [![Python](https://img.shields.io/badge/Python-3.14%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Playwright](https://img.shields.io/badge/Playwright-Automated_UI-green?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
 [![Pytest](https://img.shields.io/badge/Pytest-Testing_Framework-yellow?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org)
